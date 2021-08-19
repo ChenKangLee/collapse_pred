@@ -6,9 +6,11 @@ import numpy as np
 import random
 import math
 
+from utils.util import assure_folder_exist
+
 
 class CollapseDataset(Dataset):
-    def __init__(self, slope_units=6651, path=None, interval=None, neg_filter_rate=0):
+    def __init__(self, slope_units=6651, path=None, interval=None, neg_filter_rate=0, label_bins=[0.0, 1.0]):
 
         # the attributes of different data are stored in separate numpy arrays
         # all sharing the same indexing
@@ -16,6 +18,7 @@ class CollapseDataset(Dataset):
         self.slope_units = slope_units # numbers of slope-units
 
         self.neg_filter_rate = neg_filter_rate
+        self.label_bins = label_bins
 
         if path:
             assert(interval)
@@ -28,7 +31,7 @@ class CollapseDataset(Dataset):
 
     def __getitem__(self, idx):
         # slope_id, rain_seq, geodata, collapse
-        return idx % self.slope_units, self.rain[idx], self.geodata[idx], self.collapse[idx]
+        return idx % self.slope_units, self.rain[idx], self.geodata[idx], self.collapse[idx], self.label[idx]
 
 
     def load(self, path, interval=(94,107), neg_filter_rate=0):
@@ -67,13 +70,16 @@ class CollapseDataset(Dataset):
             path_collapse = os.path.join(path, 'collapse', f'year_{year}.npy')
             with open(path_collapse, 'rb') as file:
                 collapse_arr = np.load(file)
+        
                 collapse.append(collapse_arr)
+                label.append(np.digitize(collapse_arr, self.label_bins, right=True).reshape(-1)) # categorize by the supplied bins
                 
 
         # pytorch has default type of float32
         self.rain = torch.from_numpy(np.concatenate(rain, axis=0)).float()
         self.geodata = torch.from_numpy(np.concatenate(geodata, axis=0)).float()
         self.collapse = torch.from_numpy(np.concatenate(collapse, axis=0)).float()
+        self.label = torch.from_numpy(np.concatenate(label, axis=0)).type(torch.LongTensor)
 
         print(f'Loaded {interval[1] - interval[0]} year(s) of data.')
         return

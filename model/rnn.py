@@ -1,15 +1,17 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn.modules.activation import Sigmoid
+from torch.nn.modules.activation import Sigmoid, Softmax
 
 class RNN(nn.Module):
-    def __init__(self, dim_rain, dim_geo, dim_hidden, device=torch.device('cpu'), dropout_rate=0.4):
+    def __init__(self, dim_rain, dim_geo, dim_hidden, n_labels, device=torch.device('cpu'), dropout_rate=0.4):
         super(RNN, self).__init__()
 
         self.dim_rain = dim_rain
         self.dim_geo = dim_geo
         self.dim_hidden = dim_hidden
+        self.n_labels = n_labels
+
         self.device = device
         self.dropout_rate = dropout_rate
 
@@ -31,8 +33,8 @@ class RNN(nn.Module):
             nn.ReLU(),
             nn.Linear(64, 32),
             nn.ReLU(),
-            nn.Linear(32, 1),
-            nn.Sigmoid()
+            nn.Linear(32, self.n_labels),
+            nn.Softmax()
         )
 
         self.dropout = nn.Dropout(self.dropout_rate)
@@ -59,4 +61,4 @@ class RNN(nn.Module):
         flattened = self.dropout(flattened)
         out = self.fc(flattened)
 
-        return out.view(rain.shape[0], 1) # remove the dim 1 in axis 1, resulting from LSTM input format
+        return out # remove the dim 1 in axis 1, resulting from LSTM input format

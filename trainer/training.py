@@ -2,6 +2,7 @@ import os
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
+from model.loss import FocalLoss
 
 
 class Trainer:
@@ -10,7 +11,7 @@ class Trainer:
         self.model = model.to(device)
         self.lr = lr
 
-        self.loss = nn.HuberLoss(delta=3)
+        self.loss = FocalLoss(gamma=10)
         self.optim = torch.optim.Adam(self.model.parameters(), lr=self.lr)
 
     def train(self, folder, train, valid, epochs=30, batch_size=128):
@@ -23,15 +24,16 @@ class Trainer:
         for e in range(epochs):
             accu_loss = 0
 
-            for (_, rain, geo, collapse) in train_loader:
+            for (_, rain, geo, collapse, label) in train_loader:
                 self.model.zero_grad()
 
                 rain = rain.to(self.device)
                 geo = geo.to(self.device)
-                collapse = torch.sqrt(collapse).to(self.device) # deal with imbalance
+                # collapse = torch.sqrt(collapse).to(self.device) # deal with imbalance
+                label = label.to(self.device)
 
                 out = self.model(rain, geo)
-                ls = self.loss(out, collapse)
+                ls = self.loss(out, label)
 
                 self.optim.zero_grad()
                 ls.backward()
@@ -54,7 +56,7 @@ class Trainer:
         return train_losses, valid_losses
 
 
-    def test(self, dataset, batch_size=128, printing=False, model_file=None):
+    def test(self, dataset, batch_size=128, model_file=None):
 
         # if supplied, load the pretrained weights
         if model_file:
@@ -68,21 +70,16 @@ class Trainer:
             pred = torch.Tensor().to(self.device)
 
 
-            for (_, rain, geo, collapse) in loader:
+            for (_, rain, geo, collapse, label) in loader:
                 rain = rain.to(self.device)
                 geo = geo.to(self.device)
-                collapse = torch.sqrt(collapse).to(self.device) # deal with imbalance
+                # collapse = torch.sqrt(collapse).to(self.device) # deal with imbalance
+                label = label.to(self.device)
 
                 out = self.model(rain, geo)
-
                 pred = torch.cat((pred, out), dim=0)
 
-                if printing:
-                    for i in range(len(out)):
-                        print(f'out: {out[i].item()}, ans: {collapse[i].item()}')
-
-
-                accu_loss += self.loss(out, collapse) / len(loader)
+                accu_loss += self.loss(out, label) / len(loader)
 
             print(f'Average MSE = {accu_loss:.4f}')
 
