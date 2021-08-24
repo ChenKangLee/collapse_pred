@@ -4,6 +4,11 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 
 class FocalLoss(nn.Module):
+    """ From github: https://github.com/clcarwin/focal_loss_pytorch
+        A loss to combat imbalanced data.
+    """
+
+
     def __init__(self, gamma=0, alpha=None, size_average=True):
         super(FocalLoss, self).__init__()
         self.gamma = gamma

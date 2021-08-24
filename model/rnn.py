@@ -34,7 +34,7 @@ class RNN(nn.Module):
             nn.Linear(64, 32),
             nn.ReLU(),
             nn.Linear(32, self.n_labels),
-            nn.Softmax()
+            nn.Softmax(dim=1)
         )
 
         self.dropout = nn.Dropout(self.dropout_rate)

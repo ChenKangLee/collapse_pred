@@ -1,7 +1,10 @@
-import torch
 import matplotlib.pyplot as plt
 
 def plot_loss(training_loss, valid_loss, filename='loss.png'):
+    """ Plot the loss curve of the training process
+    """
+
+
     fig, ax = plt.subplots() 
 
     ax.plot(range(len(training_loss)), training_loss, '-b', label='training')
@@ -16,6 +19,9 @@ def plot_loss(training_loss, valid_loss, filename='loss.png'):
 
 
 def plot_pred(ans, pred, filename="out.png"):
+    """ Plot the scatter plot of the answer/prediction.
+    """
+
     fig, ax = plt.subplots() 
 
     ax.plot(range(len(ans)), ans, '.k', label='ans', markersize=5)
@@ -27,14 +33,3 @@ def plot_pred(ans, pred, filename="out.png"):
 
     # plt.show()
     plt.savefig(filename)
-
-
-def plot_confusion(n_class, ans, pred, filename="confusuion.png"):
-    confusion = {label: {pred:0 for pred in range(n_class)} for label in range(n_class)}
-
-    for l, p in zip(ans, pred):
-        confusion[l.item()][torch.argmax(p).item()] += 1
-
-    print(f"Confusion matrix of: {filename}")
-    print(confusion)
-    return

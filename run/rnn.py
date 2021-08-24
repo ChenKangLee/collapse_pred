@@ -3,8 +3,9 @@ import torch
 from utils.dataset import CollapseDataset
 from utils.util import assure_folder_exist
 from model.rnn import RNN
-from trainer.training import Trainer
-from plotting.plot import plot_loss, plot_pred, plot_confusion
+from trainer.supervised import SupervisedTrainer
+from visualize.continuous import plot_loss
+from visualize.categorical import plot_confusion
 
 
 def train_rnn():
@@ -14,15 +15,16 @@ def train_rnn():
     print("Training on device:", device)
 
     # hyperparam
-    # TODO: replace with argparse
+    # TODO: replace with argparse?
     slope_units = 6651
     label_bins = [0.0, 0.02, 0.05]
     training_interval = (94, 102)
     valid_interval = (102, 103)
     test_interval = (103, 105)
     batch_size = 128
-    epoch = 80
-    lr = 0.0003
+    epoch = 120
+    lr = 0.00003
+
 
     home = os.path.expanduser('~')
     path_processed = os.path.join(home, 'Documents', 'data', 'processed')
@@ -32,15 +34,15 @@ def train_rnn():
     assure_folder_exist(path_fig)
     assure_folder_exist(path_model)
 
-    dataset_train = CollapseDataset(slope_units=slope_units, path=path_processed, interval=training_interval, label_bins=label_bins)
+    dataset_train = CollapseDataset(slope_units=slope_units, path=path_processed, interval=training_interval, label_bins=label_bins, resample='smote')
     dataset_valid = CollapseDataset(slope_units=slope_units, path=path_processed, interval=valid_interval, label_bins=label_bins)
     dataset_test  = CollapseDataset(slope_units=slope_units, path=path_processed, interval=test_interval, label_bins=label_bins)
 
     model = RNN(dim_rain=6, dim_geo=26, n_labels=len(label_bins) + 1, dim_hidden=128, device=device)
-    trainer = Trainer(model, lr=lr, device=device)
+    loss  = torch.nn.CrossEntropyLoss()
+    trainer = SupervisedTrainer(model, loss, lr=lr, device=device)
 
     train_loss, valid_loss = trainer.train(path_model, dataset_train, dataset_valid, epochs=epoch, batch_size=batch_size)
-
 
     # check performance of best model
     path_best = os.path.join(path_model, 'model.pt')
@@ -49,11 +51,11 @@ def train_rnn():
     plot_confusion(len(label_bins) + 1, dataset_train.label, pred.cpu(), filename='training')
 
     _, pred = trainer.test(dataset_valid, batch_size=batch_size, model_file=path_best)
-    plot_confusion(len(label_bins) + 1, dataset_train.label, pred.cpu(), filename='valid')
+    plot_confusion(len(label_bins) + 1, dataset_valid.label, pred.cpu(), filename='valid')
     
     print('Testing')
     _, pred = trainer.test(dataset_test, batch_size=batch_size, model_file=path_best)
-    plot_confusion(len(label_bins) + 1, dataset_train.label, pred.cpu(), filename='testing')
+    plot_confusion(len(label_bins) + 1, dataset_test.label, pred.cpu(), filename='testing')
 
     plot_loss(train_loss, valid_loss, filename=os.path.join(path_fig, 'losses.png'))
 
