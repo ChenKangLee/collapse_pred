@@ -1,4 +1,4 @@
-import os
+rimport os
 import re
 import string
 from tokenize import Double
@@ -18,6 +18,19 @@ class Preprocessor:
         """ Loads all rainfall and collapse data in the range
             given by `interval`.
 
+            Parameters:
+            -----------
+            path_root (str):
+                The path to the raw input data (must follow naming scheme)
+            
+            interval (int, int):
+                The interval (in years) we should preprocess. Note that this
+                is the ENDING year, and the excludes the ending border.
+
+            window_sizes (list if int):
+                This specifies the size of the convolution kernel, this also effects the
+                dimension of preprocessed raindata, with `dim = len(window_sizes)`
+
             Returns:
             --------
             None
@@ -31,6 +44,12 @@ class Preprocessor:
     def dump(self, path_dest: str):
         """ Save the processed data to disk.
             The data are separated into individual files by year.
+
+
+            Parameter:
+            ----------
+            path_dest (str):
+                The path to the output desination of the processed data.
 
             Return:
             -------
@@ -201,7 +220,6 @@ class Preprocessor:
 
 
 def run():
-
     home = os.path.expanduser('~')
     root = os.path.join(home, 'Documents', 'data', 'F')
     dest = os.path.join(home, 'Documents', 'data', 'processed')

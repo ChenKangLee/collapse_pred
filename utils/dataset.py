@@ -10,6 +10,10 @@ from utils.util import assure_folder_exist
 
 
 class CollapseDataset(Dataset):
+    """ This class extends the pytorch `Dataset`.
+        It inplements the categorization process.
+    """
+
     def __init__(self, slope_units=6651, path=None, interval=None, resample=None, label_bins=[0.0, 1.0]):
 
         # the attributes of different data are stored in separate numpy arrays

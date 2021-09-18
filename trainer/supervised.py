@@ -16,7 +16,7 @@ class SupervisedTrainer:
 
 
     def train(self, folder, train, valid, epochs=30, batch_size=128):
-        """ Implements supervised training.
+        """ Implements batched forwarding passing and backprop.
 
             Parameters:
             ------------
