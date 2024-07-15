@@ -6,7 +6,7 @@ from torch.nn.modules.activation import Sigmoid, Softmax
 class RNN(nn.Module):
     def __init__(self, dim_rain, dim_geo, dim_hidden, n_labels, device=torch.device('cpu'), dropout_rate=0.4):
         super(RNN, self).__init__()
-
+        
         self.dim_rain = dim_rain
         self.dim_geo = dim_geo
         self.dim_hidden = dim_hidden

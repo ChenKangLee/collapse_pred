@@ -1,4 +1,4 @@
-rimport os
+import os
 import re
 import string
 from tokenize import Double
