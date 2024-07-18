@@ -26,21 +26,33 @@ class FCU(nn.Module):
         )
 
         self.rain_lstm = nn.Sequential(
-            nn.LSTM(self.dim_rain, self.dim_rain * 4),
-            nn.LSTM(self.dim_rain * 4, self.dim_rain * 4 * 4)
+            nn.LSTM(self.dim_rain, self.dim_rain * 4, batch_first=True),
+            nn.LSTM(self.dim_rain * 4, self.dim_rain * 4 * 4, batch_first=True)
         )
 
         # the input will be the concatenated output of the `geo_fc` and `rain_lstm` layers
         self.fc = nn.Sequential(
             nn.Linear(self.dim_geo * 4 * 4 + self.dim_rain * 4 * 4, 64),
             nn.BatchNorm1d(64),
+            nn.Sigmoid(),
             nn.Linear(64, 8),
             nn.BatchNorm1d(8),
+            nn.Sigmoid(),
             nn.Linear(8, 1),
             nn.Sigmoid()
         )
 
 
     def forward(self, geo, rain):
-        pass
+        # shape: (batch, dim_geo * 16)
+        geo_emb = self.geo_fc(geo)
+
+        # we are only using the output of the final iteration
+        # shape: (batch, 1, dim_rain * 16) -> (batch, dim_rain * 16)
+        rain_emb = self.rain_lstm(rain)[:, -1, :].reshape((-1, self.dim_rain * 16))
+
+        emb_cat = torch.cat([geo_emb, rain_emb], dim=1)
+        output = self.fc(emb_cat)
+        return output
+
 
