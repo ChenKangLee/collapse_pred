@@ -3,13 +3,6 @@ import pickle
 import abc
 from utils.util import assure_folder_exist
 
-GEO_FIELDS = [
-    'H_mean', 'Slope_mean',
-    'Aspect_mea', 'c_section_', 'c_surface_', 'cut_depth_', 'elev_var_m',
-    'rdls_mean', 'rougth_mea', 'soa_mean', 'sos_mean', 'curvature_',
-    'acc_mean', 'flowLength', 'downstream', 'upstream_L', 'code1_rati', 'code2_rati'
-]
-
 def sliding_window_iter(series, size):
     """series is a column of a dataframe"""
     for start_col in range(len(series.columns) - size + 1):

@@ -3,7 +3,9 @@ import string
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
-from preprocess.base import PreprocessorBase, GEO_FIELDS, sliding_window_iter
+from preprocess.base import PreprocessorBase, sliding_window_iter
+from utils.util import GEO_FIELDS
+
 
 class PreprocessorPyramid(PreprocessorBase):
     def __init__(self):
