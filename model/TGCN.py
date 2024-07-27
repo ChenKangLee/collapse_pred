@@ -31,7 +31,7 @@ class TGCN(nn.Module):
             batch_first=True
         )
         self.fc = nn.Sequential(
-            nn.Dropout(p=0.5),
+            nn.Dropout(self.dropout_rate),
             nn.Linear(self.LSTM_HIDDEN, self.n_slopeunits * 2),
             nn.BatchNorm1d(self.n_slopeunits * 2),
             nn.ReLU(),
