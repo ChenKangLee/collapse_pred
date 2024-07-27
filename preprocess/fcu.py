@@ -30,7 +30,7 @@ class PreprocessorFCU(PreprocessorBase):
             df_geo = df_geo.sort_values(['allslopeid'])
 
             # extract the geological infos and normalize
-            geo_values = df_geo[GEO_FIELDS].to_numpy()
+            geo_values = df_geo[GEO_FIELDS].to_numpy(dtype=np.float32)
             normalizer = StandardScaler().fit(geo_values)
             scaled_geo_value = normalizer.transform(geo_values)
 
@@ -40,6 +40,10 @@ class PreprocessorFCU(PreprocessorBase):
             aggregated_collapse = np.empty((0, 1))
 
             path_rain = os.path.join(path_root, 'eventRaindata', f'{year - 1}{year}')
+
+            # this tracks the accumulated count of windows that we got out of this
+            # this determines how many times we will tile the geo data in the end
+            total_repeat = 0
             for y in year - 1, year:
                 for eventID in string.ascii_uppercase:
                     # skip if event doesn't exist
@@ -92,8 +96,8 @@ class PreprocessorFCU(PreprocessorBase):
                     R_max = df_geo_repeated['R(imax)']
                     did_collapse = df_geo_repeated['add_3_4'] != 0
 
-                    i_rate = slideEventI[:, -1] / i_max
-                    R_rate = slideEventR[:, -1] / R_max
+                    i_rate = slideEventI[:, -1] / (i_max + self.epsilon)
+                    R_rate = slideEventR[:, -1] / (R_max + self.epsilon)
                     
                     # we've selected the threshold to be `average of i_rate and R_rate > 0.7`
                     thresholded = (0.5 * i_rate + 0.5 * R_rate) > 0.7
@@ -105,7 +109,11 @@ class PreprocessorFCU(PreprocessorBase):
 
                     # stat keeping
                     self.n_entries += aggregated_rain.shape[0]
+                    total_repeat += n_windows
 
-            self.geo[year] = scaled_geo_value
-            self.rain[year] = aggregated_rain
-            self.collapse[year] = aggregated_collapse
+            # tile geo data accordingly
+            geo_tiled = np.tile(scaled_geo_value, (total_repeat, 1))
+
+            self.geo[year] = np.nan_to_num(geo_tiled).astype(np.float32)
+            self.rain[year] = np.nan_to_num(aggregated_rain).astype(np.float32)
+            self.collapse[year] = np.nan_to_num(aggregated_collapse).astype(np.float32)

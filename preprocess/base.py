@@ -16,6 +16,13 @@ class PreprocessorBase:
         self.geo = {}
         self.collapse = {}
 
+        # here we are defining a small value that we add to the division
+        # to prevent division by zero errors that produces NaN values
+        # Impact of Epsilon & reasoning:
+        # When historical max is zero: This adjustment makes the denominator very small but non-zero, which can result in a very large PR value. This is typically a desirable behavior because any non-zero event value compared to a historical max of zero indicates a significant event.
+        # When historical max is non-zero: Adding epsilon has a negligible effect because the historical max is much larger than epsilon.
+        self.epsilon = 1e-10
+
     @abc.abstractmethod
     def load(self, path_root: str, interval=[102,106], window_size=3):
         pass

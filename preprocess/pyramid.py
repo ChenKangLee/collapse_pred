@@ -12,7 +12,7 @@ class PreprocessorPyramid(PreprocessorBase):
         super(PreprocessorPyramid, self).__init__()
 
 
-    def load(self, path_root: str, interval=[102,106], window_size=3):
+    def load(self, path_root: str, interval=[102,106], window_size=6):
 
         self.n_entries = 0
 
@@ -33,7 +33,7 @@ class PreprocessorPyramid(PreprocessorBase):
             df_geo = df_geo.sort_values(['allslopeid'])
 
             # extract the geological infos and normalize
-            geo_values = df_geo[GEO_FIELDS].to_numpy()
+            geo_values = df_geo[GEO_FIELDS].to_numpy(dtype=np.float32)
             normalizer = StandardScaler().fit(geo_values)
             scaled_geo_value = normalizer.transform(geo_values)
 
@@ -108,10 +108,9 @@ class PreprocessorPyramid(PreprocessorBase):
                     R_max = np.repeat(R_max, n_windows, axis=0)
                     did_collapse = np.repeat(did_collapse, n_windows, axis=0)
 
-                    with np.errstate(divide='ignore', invalid='ignore'):
-                        i_rate = slideEventI[:, :, -1] / i_max
-                        R_rate = slideEventR[:, :, -1] / R_max
-                        
+                    i_rate = slideEventI[:, :, -1] / (i_max + self.epsilon)
+                    R_rate = slideEventR[:, :, -1] / (R_max + self.epsilon)
+                    
                     # we've selected the threshold to be `average of i_rate and R_rate > 0.7`
                     thresholded = (0.5 * i_rate + 0.5 * R_rate) > 0.7
                     calculated_collapse = (thresholded & did_collapse)
@@ -123,8 +122,8 @@ class PreprocessorPyramid(PreprocessorBase):
                     # stats keeping
                     self.n_entries += n_windows
 
-            self.geo[year] = scaled_geo_value
-            self.rain[year] = aggregated_rain
-            self.collapse[year] = aggregated_collapse
+            self.geo[year] = np.nan_to_num(scaled_geo_value).astype(np.float32)
+            self.rain[year] = np.nan_to_num(aggregated_rain).astype(np.float32)
+            self.collapse[year] = np.nan_to_num(aggregated_collapse).astype(np.float32)
 
     
