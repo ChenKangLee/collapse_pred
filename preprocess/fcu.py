@@ -70,46 +70,47 @@ class PreprocessorFCU(PreprocessorBase):
                     # flatten spatially since in the FCU model they are not considering
                     # the spatial relationship
                     # shape: (number of total collate * num of slopeunit, window_size + 1)
-                    slideEventI = np.vstack(slideEventI)
-                    slideEventR = np.vstack(slideEventR)
+                    if len(slideEventI) > 0:
+                        slideEventI = np.vstack(slideEventI)
+                        slideEventR = np.vstack(slideEventR)
 
-                    # remove the extra window width needed for collpase calculation
-                    # shape: (number of total collate * num of slopeunit, window_size)
-                    eventI = np.delete(slideEventI, -1, axis=1)
-                    eventR = np.delete(slideEventR, -1, axis=1)
+                        # remove the extra window width needed for collpase calculation
+                        # shape: (number of total collate * num of slopeunit, window_size)
+                        eventI = np.delete(slideEventI, -1, axis=1)
+                        eventR = np.delete(slideEventR, -1, axis=1)
 
-                    # shape: (number of total collate * num of slopeunit, window_size, 2)
-                    raindata = np.dstack((eventI, eventR))
-                    # add to aggregation
-                    aggregated_rain = np.vstack((aggregated_rain, raindata))
+                        # shape: (number of total collate * num of slopeunit, window_size, 2)
+                        raindata = np.dstack((eventI, eventR))
+                        # add to aggregation
+                        aggregated_rain = np.vstack((aggregated_rain, raindata))
 
-                    ## ---------  collpase data ----------
-                    # We are projecting the collapse of end of each year onto each window
-                    # here we added a hueristic where only if the raindata exceed a certain
-                    # threshold do we register this as a collapse event
+                        ## ---------  collpase data ----------
+                        # We are projecting the collapse of end of each year onto each window
+                        # here we added a hueristic where only if the raindata exceed a certain
+                        # threshold do we register this as a collapse event
 
-                    # we need to match the shape of the geo data to the flattened sliding window result
-                    n_windows = len(df_I.columns) - window_size
-                    df_geo_repeated = pd.concat([df_geo] * n_windows, ignore_index=True)
+                        # we need to match the shape of the geo data to the flattened sliding window result
+                        n_windows = len(df_I.columns) - window_size
+                        df_geo_repeated = pd.concat([df_geo] * n_windows, ignore_index=True)
 
-                    i_max = df_geo_repeated['imax']
-                    R_max = df_geo_repeated['R(imax)']
-                    did_collapse = df_geo_repeated['add_3_4'] != 0
+                        i_max = df_geo_repeated['imax']
+                        R_max = df_geo_repeated['R(imax)']
+                        did_collapse = df_geo_repeated['add_3_4'] != 0
 
-                    i_rate = slideEventI[:, -1] / (i_max + self.epsilon)
-                    R_rate = slideEventR[:, -1] / (R_max + self.epsilon)
-                    
-                    # we've selected the threshold to be `average of i_rate and R_rate > 0.7`
-                    thresholded = (0.5 * i_rate + 0.5 * R_rate) > 0.7
-                    df_calculated_collapse = (thresholded & did_collapse)
-                    calculated_collapse = df_calculated_collapse.to_numpy().reshape(-1, 1)
+                        i_rate = slideEventI[:, -1] / (i_max + self.epsilon)
+                        R_rate = slideEventR[:, -1] / (R_max + self.epsilon)
+                        
+                        # we've selected the threshold to be `average of i_rate and R_rate > 0.7`
+                        thresholded = (0.5 * i_rate + 0.5 * R_rate) > 0.7
+                        df_calculated_collapse = (thresholded & did_collapse)
+                        calculated_collapse = df_calculated_collapse.to_numpy().reshape(-1, 1)
 
-                    # add to aggregation
-                    aggregated_collapse = np.vstack((aggregated_collapse, calculated_collapse))
+                        # add to aggregation
+                        aggregated_collapse = np.vstack((aggregated_collapse, calculated_collapse))
 
-                    # stat keeping
-                    self.n_entries += aggregated_rain.shape[0]
-                    total_repeat += n_windows
+                        # stat keeping
+                        self.n_entries += aggregated_rain.shape[0]
+                        total_repeat += n_windows
 
             # tile geo data accordingly
             geo_tiled = np.tile(scaled_geo_value, (total_repeat, 1))

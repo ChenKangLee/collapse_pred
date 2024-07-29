@@ -1,3 +1,7 @@
 data/
 *.ipynb
 __pycache__
+runs
+trained_models
+figs
+predictions

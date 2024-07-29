@@ -1,7 +1,7 @@
 import os
 import torch
 from torch.utils.data import random_split
-from utils.dataset import FCUDataset
+from utils.dataset import DatasetFCU
 from utils.util import assure_folder_exist, N_GEO_FEATURES
 from model.baseline import FCU
 from trainer.supervised import SupervisedTrainer
@@ -29,9 +29,9 @@ def train_baseline():
 
     print('Loading baseline model dataset from', dataset_name)
     # for ease of operation, we are using year 102-104 as training, 105 as validation and 106 as test
-    train = FCUDataset(path_processed, years=range(102, 105), resample='under')
-    valid = FCUDataset(path_processed, years=range(105, 106), resample='under')
-    test = FCUDataset(path_processed, years=range(106, 107))
+    train = DatasetFCU(path_processed, years=range(102, 105), resample='under', normalize=True)
+    valid = DatasetFCU(path_processed, years=range(105, 106), resample='under', normalize=True)
+    test = DatasetFCU(path_processed, years=range(106, 107), normalize=True)
 
 
     model = FCU(dim_rain=2, dim_geo=N_GEO_FEATURES, device=device, dropout_rate=0.5)
@@ -40,7 +40,7 @@ def train_baseline():
 
     # train
     print('Begin Training...')
-    train_loss, valid_loss = trainer.train(path_model, train, valid, epochs=N_EPOCH, batch_size=BATCH_SIZE)
+    train_loss, valid_loss = trainer.train(path_model, train, valid, epochs=N_EPOCH, batch_size=BATCH_SIZE, inspect=f'predictions/{dataset_name}')
 
     # check performance of best model
     path_best = os.path.join(path_model, 'model.pt')

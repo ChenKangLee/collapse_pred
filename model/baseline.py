@@ -20,9 +20,11 @@ class FCU(nn.Module):
         self.geo_fc = nn.Sequential(
             nn.Linear(self.dim_geo, self.dim_geo * 4),
             nn.BatchNorm1d(self.dim_geo * 4),
+            nn.ReLU(),
             nn.Dropout(self.dropout_rate),
             nn.Linear(self.dim_geo * 4, self.dim_geo * 4 * 4),
-            nn.BatchNorm1d(self.dim_geo * 4 * 4)
+            nn.BatchNorm1d(self.dim_geo * 4 * 4),
+            nn.ReLU()
         )
 
         self.lstm1 = nn.LSTM(self.dim_rain, self.dim_rain * 4, batch_first=True)
@@ -30,10 +32,10 @@ class FCU(nn.Module):
 
         # the input will be the concatenated output of the `geo_fc` and `rain_lstm` layers
         self.fc = nn.Sequential(
-            nn.Dropout(self.dropout_rate),
             nn.Linear(self.dim_geo * 4 * 4 + self.dim_rain * 4 * 4, 64),
             nn.BatchNorm1d(64),
             nn.Sigmoid(),
+            nn.Dropout(self.dropout_rate),
             nn.Linear(64, 8),
             nn.BatchNorm1d(8),
             nn.Sigmoid(),
