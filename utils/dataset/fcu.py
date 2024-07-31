@@ -6,7 +6,7 @@ from utils.util import N_GEO_FEATURES
 
 
 class DatasetFCU(DatasetBase):
-    def __init__(self, path, years=range(102, 107), n_slopeunit=38915, window_size=3, resample=None, normalize=False) -> None:
+    def __init__(self, path, years=range(102, 107), n_slopeunit=38915, window_size=12, resample=None, normalize=False) -> None:
         super().__init__()
 
         self.rain = np.empty((0, window_size, 2), dtype=np.float32)

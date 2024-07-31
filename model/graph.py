@@ -6,18 +6,18 @@ class GraphConvLayer(nn.Module):
     """ GCN Layer implementation of https://arxiv.org/abs/1609.02907
     """
 
-    def __init__(self, dim_in: int, dim_out: int, adj: torch.Tensor) -> None:
+    def __init__(self, dim_in: int, dim_out: int, laplacian) -> None:
         super(GraphConvLayer, self).__init__()
         self.dim_in = dim_in
         self.dim_out = dim_out
 
-        self._build_net(adj)
+        self._build_net(laplacian)
         self._init_parameters()
 
 
-    def _build_net(self, adj: torch.Tensor) -> None:
+    def _build_net(self, laplacian: torch.Tensor) -> None:
         # self.laplacian shape: (N, N)
-        self.register_buffer('laplacian', normalized_laplacian(adj))
+        self.register_buffer('laplacian', laplacian)
         self.weights = nn.Parameter(
             torch.Tensor(self.dim_in, self.dim_out)
         )

@@ -84,7 +84,8 @@ class SupervisedTrainer:
 
                 if inspect:
                     assure_folder_exist(inspect)
-                    np.savetxt(f'{inspect}/epoch_{e}_valid.txt', logits)
+                    tosave = np.concatenate((valid.collapse, logits), axis=1)
+                    np.savetxt(f'{inspect}/epoch_{e}_valid.txt', tosave, fmt='%.6f')
 
                 # early stopping
                 if valid_loss < best_loss:

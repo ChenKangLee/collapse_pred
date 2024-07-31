@@ -6,7 +6,7 @@ from model.graph import GraphConvLayer
 
 
 class TGCN(nn.Module):
-    def __init__(self, dim_rain, dim_geo, n_slopeunits, device=torch.device('cpu'), dropout_rate=0.4):
+    def __init__(self, dim_rain, dim_geo, n_slopeunits, laplacian, device=torch.device('cpu'), dropout_rate=0.4):
         super(TGCN, self).__init__()
 
         self.dim_rain = dim_rain
@@ -15,16 +15,16 @@ class TGCN(nn.Module):
 
         # hard code hyperparam for now
         self.DIM_GCN_EMB = 32
-        self.LSTM_HIDDEN = self.n_slopeunits * self.DIM_GCN_EMB * 4
+        self.LSTM_HIDDEN = self.n_slopeunits * self.DIM_GCN_EMB
 
         self.device = device
         self.dropout_rate = dropout_rate
 
-        self._build_net()
+        self._build_net(laplacian)
 
     
-    def _build_net(self):
-        self.gcn = GraphConvLayer(self.dim_geo + self.dim_rain, self.DIM_GCN_EMB)
+    def _build_net(self, laplacian):
+        self.gcn = GraphConvLayer(self.dim_geo + self.dim_rain, self.DIM_GCN_EMB, laplacian)
         self.lstm = nn.LSTM(
             self.n_slopeunits * self.DIM_GCN_EMB,
             self.LSTM_HIDDEN,

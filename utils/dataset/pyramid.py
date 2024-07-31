@@ -5,7 +5,7 @@ from .base import DatasetBase
 
 
 class DatasetPyramid(DatasetBase):
-    def __init__(self, path, years, n_slopeunit=38915, window_size=6) -> None:
+    def __init__(self, path, years, n_slopeunit=38915, window_size=6, normalize=False) -> None:
         super().__init__()
 
         self.rain = np.empty((0, n_slopeunit, window_size, 2), dtype=np.float32)
@@ -27,10 +27,10 @@ class DatasetPyramid(DatasetBase):
         with open(os.path.join(path, 'geo.pickle'), 'rb') as f:
             geo = pickle.load(f)
 
-        self._load(rain, geo, collapse, years)
+        self._load(rain, geo, collapse, years, normalize)
 
 
-    def _load(self, rain, geo, collapse, years):
+    def _load(self, rain, geo, collapse, years, normalize):
         self.geo = geo
 
         for year in years:
@@ -44,6 +44,10 @@ class DatasetPyramid(DatasetBase):
                 self.sample_intervals.append(((prev_interval_end, prev_interval_end + self.rain[year].shape[0] + 1), year))
 
             self.collapse = np.concatenate((self.collapse, collapse[year]), axis=0)
+
+        if normalize:
+            # normalize features
+            self.rain = self._normalize(self.rain)
 
 
     def _idx2year(self, index):
