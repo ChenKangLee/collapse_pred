@@ -18,27 +18,27 @@ class FCU(nn.Module):
 
     def _build_net(self):
         self.geo_fc = nn.Sequential(
-            nn.Linear(self.dim_geo, self.dim_geo * 4),
-            nn.BatchNorm1d(self.dim_geo * 4),
+            nn.Linear(self.dim_geo, self.dim_geo * 2),
+            nn.BatchNorm1d(self.dim_geo * 2),
             nn.ReLU(),
             nn.Dropout(self.dropout_rate),
-            nn.Linear(self.dim_geo * 4, self.dim_geo * 4 * 4),
-            nn.BatchNorm1d(self.dim_geo * 4 * 4),
+            nn.Linear(self.dim_geo * 2, self.dim_geo * 2),
+            nn.BatchNorm1d(self.dim_geo * 2),
             nn.ReLU()
         )
 
-        self.lstm1 = nn.LSTM(self.dim_rain, self.dim_rain * 4, batch_first=True)
-        self.lstm2 = nn.LSTM(self.dim_rain * 4, self.dim_rain * 4 * 4, batch_first=True)
+        self.lstm1 = nn.LSTM(self.dim_rain, self.dim_rain * 2, batch_first=True)
+        self.lstm2 = nn.LSTM(self.dim_rain * 2, self.dim_rain * 4, batch_first=True)
 
         # the input will be the concatenated output of the `geo_fc` and `rain_lstm` layers
         self.fc = nn.Sequential(
-            nn.Linear(self.dim_geo * 4 * 4 + self.dim_rain * 4 * 4, 64),
+            nn.Linear(self.dim_geo * 2 + self.dim_rain * 4, 64),
             nn.BatchNorm1d(64),
-            nn.Sigmoid(),
+            nn.ReLU(),
             nn.Dropout(self.dropout_rate),
             nn.Linear(64, 8),
             nn.BatchNorm1d(8),
-            nn.Sigmoid(),
+            nn.ReLU(),
             nn.Linear(8, 1),
         )
 
@@ -55,7 +55,7 @@ class FCU(nn.Module):
         # we are only using the output of the final iteration
         # shape: (batch, 1, dim_rain * 16) -> (batch, dim_rain * 16)
         lstm_out, _ = self.lstm2(lstm_out_1)
-        rain_emb = lstm_out[:, -1, :].reshape((-1, self.dim_rain * 16))
+        rain_emb = lstm_out[:, -1, :].reshape((-1, self.dim_rain * 4))
 
         emb_cat = torch.cat([geo_emb, rain_emb], dim=1)
         logits = self.fc(emb_cat)

@@ -16,11 +16,11 @@ def train_baseline():
     print("Training on device:", device)
 
     # HYPERPARAM
-    dataset_name = 'processedFCU'
+    dataset_name = 'processedFCU_max'
     N_SLOPEUNIT = 38915
     BATCH_SIZE = 12800
-    N_EPOCH = 300       # numbers of epoch to train the model
-    LR = 0.000001        # learning rate
+    N_EPOCH = 100       # numbers of epoch to train the model
+    LR = 0.00001        # learning rate
 
     # define paths
     path_processed = os.path.join('data', dataset_name)

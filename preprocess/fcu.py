@@ -64,23 +64,18 @@ class PreprocessorFCU(PreprocessorBase):
                     df_I = df_I.set_index('allslopeid').sort_index().reset_index().drop(columns='allslopeid')
                     df_R = df_R.set_index('allslopeid').sort_index().reset_index().drop(columns='allslopeid')
 
-                    slideEventI = list(sliding_window_iter(df_I, window_size + 1))
-                    slideEventR = list(sliding_window_iter(df_R, window_size + 1))
+                    slideEventI = list(sliding_window_iter(df_I, window_size))
+                    slideEventR = list(sliding_window_iter(df_R, window_size))
 
                     # flatten spatially since in the FCU model they are not considering
                     # the spatial relationship
-                    # shape: (number of total collate * num of slopeunit, window_size + 1)
+                    # shape: (number of total collate * num of slopeunit, window_size)
                     if len(slideEventI) > 0:
                         slideEventI = np.vstack(slideEventI)
                         slideEventR = np.vstack(slideEventR)
 
-                        # remove the extra window width needed for collpase calculation
-                        # shape: (number of total collate * num of slopeunit, window_size)
-                        eventI = np.delete(slideEventI, -1, axis=1)
-                        eventR = np.delete(slideEventR, -1, axis=1)
-
                         # shape: (number of total collate * num of slopeunit, window_size, 2)
-                        raindata = np.dstack((eventI, eventR))
+                        raindata = np.dstack((slideEventI, slideEventR))
                         # add to aggregation
                         aggregated_rain = np.vstack((aggregated_rain, raindata))
 
@@ -90,15 +85,15 @@ class PreprocessorFCU(PreprocessorBase):
                         # threshold do we register this as a collapse event
 
                         # we need to match the shape of the geo data to the flattened sliding window result
-                        n_windows = len(df_I.columns) - window_size
+                        n_windows = len(df_I.columns) - window_size + 1
                         df_geo_repeated = pd.concat([df_geo] * n_windows, ignore_index=True)
 
                         i_max = df_geo_repeated['imax']
                         R_max = df_geo_repeated['R(imax)']
                         did_collapse = df_geo_repeated['add_3_4'] != 0
 
-                        i_rate = slideEventI[:, -1] / (i_max + self.epsilon)
-                        R_rate = slideEventR[:, -1] / (R_max + self.epsilon)
+                        i_rate = slideEventI.max(axis=1) / (i_max + self.epsilon)
+                        R_rate = slideEventR.max(axis=1) / (R_max + self.epsilon)
                         
                         # we've selected the threshold to be `average of i_rate and R_rate > 0.7`
                         thresholded = (0.5 * i_rate + 0.5 * R_rate) > 0.7
