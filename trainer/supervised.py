@@ -139,9 +139,7 @@ class SupervisedTrainer:
                 geo = geo.to(self.device)
                 label = label.to(self.device)
 
-                logits = self.model(rain, geo)
-                probabilities = torch.sigmoid(logits).cpu()
-
+                logits = self.model(rain, geo).cpu()
                 pred = torch.cat((pred, probabilities), dim=0)
 
                 accu_loss += self.loss(logits, label).item()
@@ -150,7 +148,9 @@ class SupervisedTrainer:
 
             # extract ground truth labels
             label_true = dataset.collapse
-            label_pred = (pred > 0.5).float()
+
+            probabilities = torch.sigmoid(pred)
+            label_pred = (probabilities > 0.5).float()
 
             accuracy = accuracy_score(label_true, label_pred)
             precision = precision_score(label_true, label_pred)
