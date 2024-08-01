@@ -21,14 +21,9 @@ class FCU(nn.Module):
             nn.Linear(self.dim_geo, self.dim_geo * 2),
             nn.BatchNorm1d(self.dim_geo * 2),
             nn.ReLU(),
-            nn.Dropout(self.dropout_rate),
-            nn.Linear(self.dim_geo * 2, self.dim_geo * 2),
-            nn.BatchNorm1d(self.dim_geo * 2),
-            nn.ReLU()
         )
 
         self.lstm1 = nn.LSTM(self.dim_rain, self.dim_rain * 2, batch_first=True)
-        self.lstm2 = nn.LSTM(self.dim_rain * 2, self.dim_rain * 2, batch_first=True)
 
         # the input will be the concatenated output of the `geo_fc` and `rain_lstm` layers
         self.fc = nn.Sequential(
@@ -45,12 +40,10 @@ class FCU(nn.Module):
 
         # shape: (batch, dim_geo * 16)
         geo_emb = self.geo_fc(geo) # geo is in double for some reason, cast here
-
-        lstm_out_1, _ = self.lstm1(rain)
         
         # we are only using the output of the final iteration
         # shape: (batch, 1, dim_rain * 2) -> (batch, dim_rain * 2)
-        lstm_out, _ = self.lstm2(lstm_out_1)
+        lstm_out, _ = self.lstm1(rain)
         rain_emb = lstm_out[:, -1, :].reshape((-1, self.dim_rain * 2))
 
         emb_cat = torch.cat([geo_emb, rain_emb], dim=1)
