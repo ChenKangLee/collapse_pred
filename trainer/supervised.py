@@ -4,18 +4,17 @@ from tqdm import tqdm
 import numpy as np
 from torch.utils.data import DataLoader, Subset
 from sklearn.metrics import f1_score, accuracy_score, precision_score, recall_score
-from torch.utils.tensorboard import SummaryWriter
 from utils.util import assure_folder_exist
 
 
 class SupervisedTrainer:
-    def __init__(self, model, loss, tag='', lr=0.001, device=torch.device('cpu')):
+    def __init__(self, model, loss, writer, tag='', lr=0.001, device=torch.device('cpu')):
         self.device = device
         self.model = model.to(device)
         self.lr = lr
         self.tag = tag
 
-        self.writer = SummaryWriter()
+        self.writer = writer
 
         self.loss = loss
         self.optim = torch.optim.Adam(self.model.parameters(), lr=self.lr)
@@ -79,12 +78,12 @@ class SupervisedTrainer:
             
             if e % 5 == 0:
                 print(f'[Epoch: {e}] Validation:')
-                valid_loss, logits = self.test(valid, batch_size=batch_size, log_metrics=True, epoch=e)
+                valid_loss, logits, ground_truth = self.test(valid, batch_size=batch_size, log_metrics=True, epoch=e)
                 self.writer.add_scalar(self.tag + '/loss/valid', valid_loss, e)
 
                 if inspect:
                     assure_folder_exist(inspect)
-                    tosave = np.concatenate((valid.collapse, logits), axis=1)
+                    tosave = np.concatenate((ground_truth, logits), axis=1)
                     np.savetxt(f'{inspect}/epoch_{e}_valid.txt', tosave, fmt='%.6f')
 
                 # early stopping
@@ -128,34 +127,33 @@ class SupervisedTrainer:
         if model_file:
             self.model.load_state_dict(torch.load(model_file))
 
-        loader = DataLoader(dataset, batch_size=batch_size)
+        loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
         with torch.no_grad():
             accu_loss = 0
             pred = torch.Tensor()
+            label_all = torch.Tensor()
 
             for (_, rain, geo, label) in tqdm(loader):
                 rain = rain.to(self.device)
                 geo = geo.to(self.device)
                 label = label.to(self.device)
 
-                logits = self.model(rain, geo).cpu()
-                pred = torch.cat((pred, probabilities), dim=0)
+                logits = self.model(rain, geo)
+                pred = torch.cat((pred, logits.cpu()), dim=0)
+                label_all = torch.cat((label_all, label.cpu()), dim=0)
 
                 accu_loss += self.loss(logits, label).item()
 
             accu_loss /= len(loader)
 
-            # extract ground truth labels
-            label_true = dataset.collapse
-
             probabilities = torch.sigmoid(pred)
             label_pred = (probabilities > 0.5).float()
 
-            accuracy = accuracy_score(label_true, label_pred)
-            precision = precision_score(label_true, label_pred)
-            recall = recall_score(label_true, label_pred)
-            macro_f1 = f1_score(label_true, label_pred, average='macro')
+            accuracy = accuracy_score(label_all, label_pred)
+            precision = precision_score(label_all, label_pred)
+            recall = recall_score(label_all, label_pred)
+            macro_f1 = f1_score(label_all, label_pred, average='macro')
 
             print(f'loss = {accu_loss:.4f}')
             print(f'Accuracy =', accuracy)
@@ -170,4 +168,4 @@ class SupervisedTrainer:
                 self.writer.add_scalar(self.tag + '/metrics/macro_f1', macro_f1, epoch)
 
 
-        return accu_loss, pred
+        return accu_loss, pred, label_all

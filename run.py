@@ -8,6 +8,7 @@ from utils.util import assure_folder_exist, load_adjacency_matrix, N_GEO_FEATURE
 from model.baseline import FCU
 from model.TGCN import TGCN
 from trainer.supervised import SupervisedTrainer
+from torch.utils.tensorboard import SummaryWriter
 
 
 def train_baseline():
@@ -15,8 +16,10 @@ def train_baseline():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print("Training on device:", device)
 
+
     # HYPERPARAM
     dataset_name = 'processedFCU_max'
+    experiment_name = 'mix_data_years'
     N_SLOPEUNIT = 38915
     BATCH_SIZE = 12800
     N_EPOCH = 100       # numbers of epoch to train the model
@@ -32,23 +35,30 @@ def train_baseline():
 
     print('Loading baseline model dataset from', dataset_name)
     # for ease of operation, we are using year 102-104 as training, 105 as validation and 106 as test
-    train = DatasetFCU(path_processed, years=range(102, 105), resample='under', normalize=True)
-    valid = DatasetFCU(path_processed, years=range(105, 106), resample='under', normalize=True)
-    # test = DatasetFCU(path_processed, years=range(106, 107), normalize=True)
+    dataset = DatasetFCU(path_processed, years=range(102, 105), resample='under', normalize=True)
+    train, valid, test = random_split(dataset, [0.7, 0.15, 0.15])
 
 
     model = FCU(dim_rain=2, dim_geo=N_GEO_FEATURES, device=device, dropout_rate=0.5)
     loss  = torch.nn.BCEWithLogitsLoss()
-    trainer = SupervisedTrainer(model, loss, tag='FCU', lr=LR, device=device)
+    writer = SummaryWriter(comment=experiment_name)
+    trainer = SupervisedTrainer(model, loss, writer, tag='FCU', lr=LR, device=device)
 
     # train
     print('Begin Training...')
-    train_loss, valid_loss = trainer.train(path_model, train, valid, epochs=N_EPOCH, batch_size=BATCH_SIZE, inspect=f'predictions/{dataset_name}')
+    train_loss, valid_loss = trainer.train(
+        path_model,
+        train,
+        valid,
+        epochs=N_EPOCH,
+        batch_size=BATCH_SIZE,
+        inspect=f'predictions/{dataset_name}_{experiment_name}'
+    )
 
     # check performance of best model
     # path_best = os.path.join(path_model, 'model_epoch_5.pt')
     # print('Testing...')
-    # _, pred = trainer.test(test, batch_size=BATCH_SIZE, model_file=path_best)
+    # _, pred, ground_truth = trainer.test(test, batch_size=BATCH_SIZE, model_file=path_best)
 
 
 def train_pyramid():
