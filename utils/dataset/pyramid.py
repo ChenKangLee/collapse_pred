@@ -2,6 +2,7 @@ import os
 import pickle
 import numpy as np
 from .base import DatasetBase
+from utils.util import N_GEO_FEATURES
 
 
 class DatasetPyramid(DatasetBase):
@@ -16,6 +17,7 @@ class DatasetPyramid(DatasetBase):
         # for the geo data, we dont have to tile them at init, we can use a reversed
         # interval to year lookup to fetch the corresponding geo data and return tiled
         # data on the fly
+        
         self.sample_intervals = []
 
         with open(os.path.join(path, 'collapse.pickle'), 'rb') as f:
@@ -46,7 +48,19 @@ class DatasetPyramid(DatasetBase):
             self.collapse = np.concatenate((self.collapse, collapse[year]), axis=0)
 
         if normalize:
-            # normalize features
+            # combine geo data into one numpy array to normalize
+            geo_all = np.empty((0, N_GEO_FEATURES))
+            for year in years:
+                geo_all = np.concatenate((geo_all, self.geo[year]), axis=0)
+
+            geo_all = self._normalize(geo_all)
+
+            geo_all = geo_all.reshape((-1, self.n_slopeunit, N_GEO_FEATURES))
+
+            print(geo_all.shape)
+            for i, year in enumerate(years):
+                self.geo[year] = geo_all[i, :, :]
+
             self.rain = self._normalize(self.rain)
 
 

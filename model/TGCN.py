@@ -14,8 +14,8 @@ class TGCN(nn.Module):
         self.n_slopeunits = n_slopeunits
 
         # hard code hyperparam for now
-        self.DIM_GCN_EMB = 32
-        self.LSTM_HIDDEN = self.n_slopeunits * self.DIM_GCN_EMB
+        self.DIM_GCN_EMB = 24
+        self.LSTM_HIDDEN = 48
 
         self.device = device
         self.dropout_rate = dropout_rate
@@ -26,18 +26,15 @@ class TGCN(nn.Module):
     def _build_net(self, laplacian):
         self.gcn = GraphConvLayer(self.dim_geo + self.dim_rain, self.DIM_GCN_EMB, laplacian)
         self.lstm = nn.LSTM(
-            self.n_slopeunits * self.DIM_GCN_EMB,
+            self.DIM_GCN_EMB,
             self.LSTM_HIDDEN,
             batch_first=True
         )
         self.fc = nn.Sequential(
-            nn.Dropout(self.dropout_rate),
-            nn.Linear(self.LSTM_HIDDEN, self.n_slopeunits * 2),
-            nn.BatchNorm1d(self.n_slopeunits * 2),
+            nn.Linear(self.LSTM_HIDDEN, 16),
+            nn.BatchNorm1d(16),
             nn.ReLU(),
-            nn.Linear(self.n_slopeunits * 2, self.n_slopeunits),
-            nn.BatchNorm1d(self.n_slopeunits),
-            nn.Sigmoid()
+            nn.Linear(16, 1)
         )
 
 
@@ -61,20 +58,23 @@ class TGCN(nn.Module):
 
         # emb shape: (B, N, T, DIM_GCN_EMB)
         emb = self.gcn(inputs)
+        del inputs
 
-        # (B, N, T, DIM_GCN_EMB) -> (B, T, N, DIM_GCN_EMB)
-        emb = emb.transpose(1, 2)
+        # flatten, remove the dimension of slopeunits
+        # (B, N, T, DIM_GCN_EMB) -> (B * N, T, DIM_GCN_EMB)
+        emb = emb.reshape((-1, T, self.DIM_GCN_EMB))
 
-        # flatten all the values from each slope unit into one feature vector
-        lstm_inputs = emb.reshape((B, T, N * self.DIM_GCN_EMB))
-
-        # lstm_out shape: (B, T, DIM_LSTM_HIDDEN)
-        lstm_out, (_, _) = self.lstm(lstm_inputs)
+        # lstm_out shape: (B * N, T, DIM_LSTM_HIDDEN)
+        lstm_out, (_, _) = self.lstm(emb)
+        del emb
 
         # we are only taking the output at the end of the sequence
-        # shape: (B, DIM_LSTM_HIDDEN)
+        # shape: (B * N, DIM_LSTM_HIDDEN)
         fc_inputs = lstm_out[:, -1, :]
         outputs = self.fc(fc_inputs)
+
+        # reshape output to bring back dimension of slopeunits
+        outputs = outputs.reshape((B, N, -1))
         return outputs
 
 
