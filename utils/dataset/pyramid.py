@@ -56,8 +56,6 @@ class DatasetPyramid(DatasetBase):
             geo_all = self._normalize(geo_all)
 
             geo_all = geo_all.reshape((-1, self.n_slopeunit, N_GEO_FEATURES))
-
-            print(geo_all.shape)
             for i, year in enumerate(years):
                 self.geo[year] = geo_all[i, :, :]
 
@@ -71,5 +69,6 @@ class DatasetPyramid(DatasetBase):
 
 
     def __getitem__(self, index):
+        # index for retrieving geo data
         year = self._idx2year(index)
         return index, self.rain[index], self.geo[year].astype(np.float32), self.collapse[index]
