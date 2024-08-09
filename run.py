@@ -1,14 +1,15 @@
 import os
 import torch
-import pandas as pd
-import numpy as np
 from torch.utils.data import random_split
 from utils.dataset import DatasetFCU, DatasetPyramid
-from utils.util import assure_folder_exist, load_adjacency_matrix, N_GEO_FEATURES
+from utils.util import assure_folder_exist, N_GEO_FEATURES
 from model.baseline import FCU
 from model.TGCN import TGCN
 from trainer.supervised import SupervisedTrainer
 from torch.utils.tensorboard import SummaryWriter
+from torch.utils.data import Subset
+
+N_SLOPEUNIT = 38915
 
 
 def train_baseline():
@@ -18,12 +19,11 @@ def train_baseline():
 
 
     # HYPERPARAM
-    dataset_name = 'processedFCU_max'
-    experiment_name = 'mix_data_years'
-    N_SLOPEUNIT = 38915
-    BATCH_SIZE = 12800
-    N_EPOCH = 100       # numbers of epoch to train the model
-    LR = 0.00001        # learning rate
+    dataset_name = 'processedFCU_max_ws_6'
+    experiment_name = '_weighted_labels'
+    BATCH_SIZE = 35600
+    N_EPOCH = 60        # numbers of epoch to train the model
+    LR = 0.00003        # learning rate
 
     # define paths
     path_processed = os.path.join('data', dataset_name)
@@ -33,14 +33,19 @@ def train_baseline():
     assure_folder_exist(path_fig)
     assure_folder_exist(path_model)
 
+    model = FCU(dim_rain=2, dim_geo=N_GEO_FEATURES, device=device, dropout_rate=0.5)
+
     print('Loading baseline model dataset from', dataset_name)
-    # for ease of operation, we are using year 102-104 as training, 105 as validation and 106 as test
-    dataset = DatasetFCU(path_processed, years=range(102, 105), resample='under', normalize=True)
+    dataset = DatasetFCU(path_processed, years=range(102, 105), normalize=True, window_size=6)
     train, valid, test = random_split(dataset, [0.7, 0.15, 0.15])
 
+    # get label distribution statistics, we are only calculating count for training set
+    positive_count = dataset.collapse[train.indices].sum()
+    # `pos_weight` is invertly correlated to the negative percentage
+    pos_weight = torch.tensor([(len(train) - positive_count) / (len(train))])
+    print(f"    Percentage of positive training data {1 - pos_weight.item():4f}")
 
-    model = FCU(dim_rain=2, dim_geo=N_GEO_FEATURES, device=device, dropout_rate=0.5)
-    loss  = torch.nn.BCEWithLogitsLoss()
+    loss  = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
     writer = SummaryWriter(comment=experiment_name)
     trainer = SupervisedTrainer(model, loss, writer, tag='FCU', lr=LR, device=device)
 
@@ -52,7 +57,7 @@ def train_baseline():
         valid,
         epochs=N_EPOCH,
         batch_size=BATCH_SIZE,
-        inspect=f'predictions/{dataset_name}_{experiment_name}'
+        # inspect=f'predictions/{dataset_name}_{experiment_name}'
     )
 
     # check performance of best model
@@ -68,9 +73,10 @@ def train_pyramid():
 
     # HYPERPARAM
     dataset_name = 'processedPyramid_ws_6'
-    N_SLOPEUNIT = 38915
-    BATCH_SIZE = 32
-    N_EPOCH = 100       # numbers of epoch to train the model
+    experiment_name = '_weighted_labels'
+    
+    BATCH_SIZE = 8
+    N_EPOCH = 100        # numbers of epoch to train the model
     LR = 0.00001        # learning rate
 
     # define paths
@@ -84,19 +90,29 @@ def train_pyramid():
 
     # load pre-calculated laplacian
     laplacian = torch.load(path_laplacian)
-
     model = TGCN(dim_rain=2, dim_geo=N_GEO_FEATURES, n_slopeunits=N_SLOPEUNIT, laplacian=laplacian, device=device, dropout_rate=0.5)
-    loss  = torch.nn.BCEWithLogitsLoss()
-    trainer = SupervisedTrainer(model, loss, tag='Pyramid', lr=LR, device=device)
 
-    print('Loading baseline model dataset from', dataset_name)
-    # for ease of operation, we are using year 102-104 as training, 105 as validation and 106 as test
-    train = DatasetPyramid(path_processed, years=range(102, 105), normalize=True)
-    valid = DatasetPyramid(path_processed, years=range(105, 106), normalize=True)
+    print('Loading TGCN model dataset from', dataset_name)
+    dataset = DatasetPyramid(path_processed, years=range(102, 105), normalize=True)
+    train, valid, test = random_split(dataset, [0.7, 0.15, 0.15])
+
+    # calculate pos_weight for the training set
+    pos_weight = _pyramid_calc_ratio(train)
+    print(f"    Percentage of positive training data {1 - pos_weight.item():4f}")
+
+    loss  = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+    writer = SummaryWriter(comment=experiment_name)
+    trainer = SupervisedTrainer(model, loss, writer, tag='Pyramid', lr=LR, device=device)
 
     # train
     print('Begin Training...')
-    train_loss, valid_loss = trainer.train(path_model, train, valid, epochs=N_EPOCH, batch_size=BATCH_SIZE, inspect=f'predictions/{dataset_name}')
+    train_loss, valid_loss = trainer.train(
+        path_model,
+        train,
+        valid,
+        epochs=N_EPOCH,
+        batch_size=BATCH_SIZE
+    )
 
     # check performance of best model
     # path_best = os.path.join(path_model, 'model_epoch_5.pt')
@@ -104,5 +120,19 @@ def train_pyramid():
     # _, pred = trainer.test(test, batch_size=BATCH_SIZE, model_file=path_best)
 
 
+def _pyramid_calc_ratio(subset: Subset):
+    """ For the pyramid dataset since the data comes in structured form
+        so we need extra steps to calculate the statistics
+    """
+
+    dataset_len = pos_count = 0
+    for idx in subset.indices:
+        dataset_len += N_SLOPEUNIT
+        pos_count += subset.dataset.collapse[idx].sum()
+    
+    pos_weight = torch.tensor([(dataset_len - pos_count) / dataset_len])
+    return pos_weight
+
+
 if __name__ == "__main__":
-    train_baseline()
+    train_pyramid()

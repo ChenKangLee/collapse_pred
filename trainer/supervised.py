@@ -16,7 +16,7 @@ class SupervisedTrainer:
 
         self.writer = writer
 
-        self.loss = loss
+        self.loss = loss.to(device)
         self.optim = torch.optim.Adam(self.model.parameters(), lr=self.lr)
 
 
@@ -149,6 +149,10 @@ class SupervisedTrainer:
 
             probabilities = torch.sigmoid(pred)
             label_pred = (probabilities > 0.5).float()
+
+            # reshape to flatten labels for graph outputs
+            label_all = label_all.reshape((-1, 1))
+            label_pred = label_pred.reshape((-1, 1))
 
             accuracy = accuracy_score(label_all, label_pred)
             precision = precision_score(label_all, label_pred)
