@@ -20,7 +20,7 @@ def train_baseline():
 
     # HYPERPARAM
     dataset_name = 'processedFCU_max_ws_6'
-    experiment_name = '_weighted_labels'
+    experiment_name = 'weighted_labels'
     BATCH_SIZE = 35600
     N_EPOCH = 60        # numbers of epoch to train the model
     LR = 0.00003        # learning rate
@@ -42,12 +42,12 @@ def train_baseline():
     # get label distribution statistics, we are only calculating count for training set
     positive_count = dataset.collapse[train.indices].sum()
     # `pos_weight` is invertly correlated to the negative percentage
-    pos_weight = torch.tensor([(len(train) - positive_count) / (len(train))])
-    print(f"    Percentage of positive training data {1 - pos_weight.item():4f}")
+    pos_weight = torch.tensor([(len(train) - positive_count) / positive_count])
+    print(f"    Percentage of positive training data {positive_count / len(train):4f}")
 
     loss  = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
     writer = SummaryWriter(comment=experiment_name)
-    trainer = SupervisedTrainer(model, loss, writer, tag='FCU', lr=LR, device=device)
+    trainer = SupervisedTrainer(model, loss, writer, tag='', lr=LR, device=device)
 
     # train
     print('Begin Training...')
@@ -73,11 +73,11 @@ def train_pyramid():
 
     # HYPERPARAM
     dataset_name = 'processedPyramid_ws_6'
-    experiment_name = '_weighted_labels'
+    experiment_name = 'weighted_labels'
     
     BATCH_SIZE = 8
-    N_EPOCH = 100        # numbers of epoch to train the model
-    LR = 0.00001        # learning rate
+    N_EPOCH = 120        # numbers of epoch to train the model
+    LR = 0.00002        # learning rate
 
     # define paths
     path_processed = os.path.join('data', dataset_name)
@@ -98,11 +98,11 @@ def train_pyramid():
 
     # calculate pos_weight for the training set
     pos_weight = _pyramid_calc_ratio(train)
-    print(f"    Percentage of positive training data {1 - pos_weight.item():4f}")
+    
 
     loss  = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
     writer = SummaryWriter(comment=experiment_name)
-    trainer = SupervisedTrainer(model, loss, writer, tag='Pyramid', lr=LR, device=device)
+    trainer = SupervisedTrainer(model, loss, writer, tag='', lr=LR, device=device)
 
     # train
     print('Begin Training...')
@@ -130,7 +130,9 @@ def _pyramid_calc_ratio(subset: Subset):
         dataset_len += N_SLOPEUNIT
         pos_count += subset.dataset.collapse[idx].sum()
     
-    pos_weight = torch.tensor([(dataset_len - pos_count) / dataset_len])
+    print(f"    Percentage of positive training data {pos_count / dataset_len:4f}")
+
+    pos_weight = torch.tensor([(dataset_len - pos_count) / pos_count])
     return pos_weight
 
 

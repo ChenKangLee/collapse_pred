@@ -127,7 +127,7 @@ class SupervisedTrainer:
         if model_file:
             self.model.load_state_dict(torch.load(model_file))
 
-        loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+        loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
         with torch.no_grad():
             accu_loss = 0
