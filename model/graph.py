@@ -64,3 +64,53 @@ class GraphConvLayer(nn.Module):
         return outputs
 
 
+class GraphConvGRULayer(nn.Module):
+    """ Alternative implementation of the GraphConv Layer for the decoupled GRU
+        This implementation takes hidden states + inputs and does not apply
+        activation
+    """
+
+    def __init__(self, laplacian, dim_in: int, dim_out: int, bias: float = 0.0):
+        super(GraphConvGRULayer, self).__init__()
+        self.dim_in = dim_in
+        self.dim_out = dim_out
+        self._bias_init_value = bias
+
+        self.register_buffer("laplacian", laplacian)
+        self.weights = nn.Parameter(torch.FloatTensor(self.dim_in, self.dim_out))
+        self.biases = nn.Parameter(torch.FloatTensor(self.dim_out))
+        self.reset_parameters()
+
+
+    def reset_parameters(self):
+        nn.init.xavier_uniform_(self.weights)
+        nn.init.constant_(self.biases, self._bias_init_value)
+
+
+    def forward(self, inputs: torch.FloatTensor):
+
+        # B: batch size
+        # N: number of nodes
+        # C: channels
+        B, N, C = inputs.shape
+
+        # inputs = [x, h] (B,N,H) -> (N,B,H)
+        inputs = inputs.transpose(0, 1)
+        # X = [x, h] (N,B,H) -> (N,B*H)
+        inputs = inputs.reshape((N, B*C))
+
+        # A[x, h] (N,B*H)
+        AX = self.laplacian @ inputs
+        # A[x, h] (N,B*H) -> (N*B,H)
+        AX = AX.reshape((N*B, C))
+
+        # O: dim_out
+        # A[x, h]W + b (N*B, O)
+        AXW_B = AX @ self.weights + self.biases
+
+        # A[x, h]W + b (N*B,O) -> (N,B,O)
+        outputs = AXW_B.reshape((N, B, self.dim_out))
+
+        # (N,B,O) -> (B,N,O)
+        outputs = outputs.transpose(0, 1)
+        return outputs

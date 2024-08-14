@@ -1,8 +1,7 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from torch.nn.modules.activation import Sigmoid, Softmax
 from model.graph import GraphConvLayer
+from model.GCNGRU import GCNGRU
 
 
 class TGCN(nn.Module):
@@ -13,9 +12,9 @@ class TGCN(nn.Module):
         self.dim_geo = dim_geo
         self.n_slopeunits = n_slopeunits
 
-        # hard code hyperparam for now
-        self.DIM_GCN_EMB = 32
-        self.LSTM_HIDDEN = self.n_slopeunits * self.DIM_GCN_EMB
+        # hard-code hyperparam for now
+        self.GRU_IN = self.dim_rain + self.dim_geo
+        self.GRU_HIDDEN = self.dim_rain + self.dim_geo
 
         self.device = device
         self.dropout_rate = dropout_rate
@@ -24,20 +23,11 @@ class TGCN(nn.Module):
 
     
     def _build_net(self, laplacian):
-        self.gcn = GraphConvLayer(self.dim_geo + self.dim_rain, self.DIM_GCN_EMB, laplacian)
-        self.lstm = nn.LSTM(
-            self.n_slopeunits * self.DIM_GCN_EMB,
-            self.LSTM_HIDDEN,
-            batch_first=True
-        )
+        self.gcngru = GCNGRU(self.GRU_IN, laplacian)
         self.fc = nn.Sequential(
-            nn.Dropout(self.dropout_rate),
-            nn.Linear(self.LSTM_HIDDEN, self.n_slopeunits * 2),
-            nn.BatchNorm1d(self.n_slopeunits * 2),
-            nn.ReLU(),
-            nn.Linear(self.n_slopeunits * 2, self.n_slopeunits),
-            nn.BatchNorm1d(self.n_slopeunits),
-            nn.Sigmoid()
+            nn.Linear(self.GRU_HIDDEN, 8),
+            nn.BatchNorm1d(8),
+            nn.Linear(8, 1)
         )
 
 
@@ -59,26 +49,15 @@ class TGCN(nn.Module):
         # inputs shape: (B, N, T, 20)
         inputs = torch.cat((rain, geodata), dim=3)
 
-        # emb shape: (B, N, T, DIM_GCN_EMB)
-        emb = self.gcn(inputs)
+        # `gruout` shape: (B, N, GRU_HIDDEN)
+        gru_out = self.gcngru(inputs)
 
-        # (B, N, T, DIM_GCN_EMB) -> (B, T, N, DIM_GCN_EMB)
-        emb = emb.transpose(1, 2)
+        # `outputs` shape: (B, 1)
+        # TODO: maybe will cause problems?
+        gru_out = gru_out.reshape((B*N, self.GRU_HIDDEN))
+        outputs = self.fc(gru_out)
 
-        # flatten all the values from each slope unit into one feature vector
-        lstm_inputs = emb.reshape((B, T, N * self.DIM_GCN_EMB))
-
-        # lstm_out shape: (B, T, DIM_LSTM_HIDDEN)
-        lstm_out, (_, _) = self.lstm(lstm_inputs)
-
-        # we are only taking the output at the end of the sequence
-        # shape: (B, DIM_LSTM_HIDDEN)
-        fc_inputs = lstm_out[:, -1, :]
-        outputs = self.fc(fc_inputs)
+        # bring back dimension of slope units
+        outputs = outputs.reshape((B, N, -1))
         return outputs
-
-
-
-
-
 
