@@ -12,7 +12,7 @@ class PreprocessorFCU(PreprocessorBase):
         super(PreprocessorFCU, self).__init__()
 
 
-    def load(self, path_root: str, interval=[102,106], window_size=3):
+    def load(self, path_root: str, interval=[102,106], window_size=3, df_subset: pd.DataFrame=None):
         # raindata is indexed using `slopecode1`, we load lookup table to convert to `allslopeid`
         df_slopeid = pd.read_excel(os.path.join(path_root, 'slopeunit_id.xlsx'))
 
@@ -25,6 +25,10 @@ class PreprocessorFCU(PreprocessorBase):
             if not os.path.exists(path_geo_data):
                 continue
             df_geo = pd.read_excel(path_geo_data)
+            
+            # TODO: [subsampling] there isn't really an elegant way to do this, update in the future?
+            if df_subset is not None:
+                df_geo = df_geo[df_geo['allslopeid'].isin(df_subset['allslopeid'])]
 
             # just to be sure sort by allslopeid
             df_geo = df_geo.sort_values(['allslopeid'])
@@ -60,6 +64,11 @@ class PreprocessorFCU(PreprocessorBase):
                     # left join to get corresponding `allslopeid`
                     df_I = df_I.set_index('slopecode1').join(df_slopeid.set_index('slopecode1'), on='slopecode1', how='left')
                     df_R = df_R.set_index('slopecode1').join(df_slopeid.set_index('slopecode1'), on='slopecode1', how='left')
+
+                    # TODO: [subsampling] there isn't really an elegant way to do this, update in the future?
+                    if df_subset is not None:
+                        df_I = df_I[df_I['allslopeid'].isin(df_subset['allslopeid'])]
+                        df_R = df_R[df_R['allslopeid'].isin(df_subset['allslopeid'])]
 
                     df_I = df_I.set_index('allslopeid').sort_index().reset_index().drop(columns='allslopeid')
                     df_R = df_R.set_index('allslopeid').sort_index().reset_index().drop(columns='allslopeid')

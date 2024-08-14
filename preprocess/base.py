@@ -23,9 +23,11 @@ class PreprocessorBase:
         # When historical max is non-zero: Adding epsilon has a negligible effect because the historical max is much larger than epsilon.
         self.epsilon = 1e-10
 
+
     @abc.abstractmethod
     def load(self, path_root: str, interval=[102,106], window_size=3):
         pass
+
 
     def dump(self, path_processed):
         assure_folder_exist(path_processed)
