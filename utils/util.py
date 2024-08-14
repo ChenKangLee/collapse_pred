@@ -49,13 +49,18 @@ def normalized_laplacian(adj, device=torch.device('cuda')):
     return adj.matmul(d_mat_inv_sqrt).transpose(0, 1).matmul(d_mat_inv_sqrt).cpu()
 
 
-def load_adjacency_matrix(path_adj, n_slopeunits):
+def load_adjacency_matrix(path_subset, path_adj, n_slopeunits):
+    # create a mapping `allslopeid` to value between 0 to (N_SLOPEUNIT - 1)
+    df_subset = pd.read_csv(path_subset)
+    allslope2idx = { slopeid: idx for idx, slopeid in enumerate(df_subset['allslopeid'].sort_values()) }
+    
     df_adj = pd.read_csv(path_adj)
-
     adj = np.zeros((n_slopeunits, n_slopeunits), dtype=np.float32)
 
     for row in df_adj.itertuples():
-        adj[row.src_allslopeid][row.nbr_allslopeid] = row.LENGTH
+        src = allslope2idx[row.src_allslopeid]
+        nbr = allslope2idx[row.nbr_allslopeid]
+        adj[src][nbr] = row.LENGTH
 
     scaler = MaxAbsScaler()
     adj = adj.reshape(-1, 1)
